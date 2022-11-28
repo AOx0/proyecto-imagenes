@@ -102,9 +102,7 @@ pub fn Main<'a>(
 }
 
 fn main() {
-    //wasm_logger::init(wasm_logger::Config::default());
     console_error_panic_hook::set_once();
-    //dioxus::desktop::launch(app);
 
     log::info!("Launched app!");
 
@@ -129,7 +127,6 @@ fn main() {
             "##,
             include_str!("../public/assets/tailwind.css")
         )),
-        //.with_custom_head(format!("<link data-trunk href='./assets/tailwind.css' rel='css' />")),
     );
 }
 
