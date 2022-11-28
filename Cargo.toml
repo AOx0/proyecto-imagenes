@@ -1,5 +1,5 @@
 [package]
-name = "proyecto-imagenes"
+name = "proyecto"
 version = "0.1.0"
 authors = ["Alejandro Osornio <50227494+AOx0@users.noreply.github.com>"]
 edition = "2021"
@@ -7,11 +7,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dioxus = { version = "0.2.4", features = ["web", "desktop"] }
+#dioxus = { version = "0.2.4", features = ["web"] }
+dioxus = { git = "https://github.com/dioxuslabs/dioxus.git" }
+#dioxus-web = { git = "https://github.com/dioxuslabs/dioxus.git" }
+dioxus-desktop = { git = "https://github.com/dioxuslabs/dioxus.git" }
 
 log = "0.4.6"
-
-# WebAssembly Debug
 wasm-logger = "0.2.0"
 console_error_panic_hook = "0.1.7"
+base64 = "0.13.1"
 opencv = "0.73.0"

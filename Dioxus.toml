@@ -1,42 +1,24 @@
 [application]
-
-# App (Project) Name
-name = "proyecto-imagenes"
-
-# Dioxus App Default Platform
-# desktop, web, mobile, ssr
+name = "proyecto"
 default_platform = "desktop"
-
-# `build` & `serve` dist path
 out_dir = "dist"
-
-# resource (public) file folder
 asset_dir = "public"
 
 [web.app]
-
-# HTML title tag content
-title = "dioxus | ⛺"
+title = "dioxus"
 
 [web.watcher]
-
-# when watcher trigger, regenerate the `index.html`
 reload_html = true
+index_on_404 = true
+watch_path = ["src", "public", "index.html"]
 
-# which files or dirs will be watcher monitoring
-watch_path = ["src", "public"]
-
-# include `assets` in web platform
 [web.resource]
-
-# CSS style file
-style = []
-
-# Javascript code file
-script = []
+style = [
+  '/assets/tailwind.css',
+]
+script = [
+#  '/assets/tailwind.config.js',
+]
 
 [web.resource.dev]
-
-# Javascript code file
-# serve: [dev-server] only
 script = []
