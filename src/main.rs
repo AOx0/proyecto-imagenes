@@ -71,9 +71,9 @@ pub fn Sticky(cx: Scope) -> Element {
 pub fn Footer(cx: Scope) -> Element {
     cx.render(rsx! {
         footer {
-            class:"h-10 bg-black",
+            class:"h-10 bg-titlebar",
             div {
-                class: "bg-black",
+                class: "bg-titlebar",
                 h1 { class:"text-white text-2xl text-center p-5", "Footer" }
             }
         }
