@@ -1,0 +1,9 @@
+pub const H1: &str = "text-5xl md:text-6xl font-bold text-black dark:text-white";
+pub const H2: &str = "text-4xl md:text-5xl font-bold text-black dark:text-white";
+pub const H3: &str = "text-3xl md:text-4xl font-semibold text-black dark:text-white";
+pub const H4: &str = "text-3xl md:text-4xl font-semibold text-black dark:text-white";
+pub const H5: &str = "text-2xl md:text-3xl font-semibold text-black dark:text-white";
+pub const P: &str = " text-black dark:text-white";
+pub const GREEN: &str = "bg-green-600";
+pub const N800: &str = "neutral-800";
+pub const BLUE: &str = "#0057b8";

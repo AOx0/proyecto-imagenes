@@ -11,6 +11,7 @@ edition = "2021"
 dioxus = { git = "https://github.com/dioxuslabs/dioxus.git" }
 #dioxus-web = { git = "https://github.com/dioxuslabs/dioxus.git" }
 dioxus-desktop = { git = "https://github.com/dioxuslabs/dioxus.git" }
+dioxus-router = { git = "https://github.com/dioxuslabs/dioxus.git" }
 
 log = "0.4.6"
 wasm-logger = "0.2.0"
