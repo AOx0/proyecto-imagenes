@@ -226,9 +226,16 @@ fn MainApp(cx: Scope) -> Element {
                                     state_img.set(false);
                                     return;
                                 }
+
+                                let img_extension = std::path::PathBuf::from_str( spath_valid.get()).unwrap();
+                                let img_extension = img_extension.extension().unwrap().to_str().unwrap();
+                                let new_path = data_dir.join(format!("old_img.{img_extension}"));
+
+                                println!("Copying file to {:?} from {:?}", new_path, spath_valid.get());
+                                std::fs::copy(spath_valid.get(), new_path.to_str().unwrap()).unwrap();
     
                                 let result = call_python(
-                                    &spath_valid.get(),
+                                    new_path.to_str().unwrap(),
                                     data_dir.to_str().unwrap()
                                 );
                                 
