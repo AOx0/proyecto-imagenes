@@ -2,24 +2,23 @@
 #![allow(non_snake_case)]
 #![allow(unused_imports)]
 
-use std::{io::Read, path::Path, str::FromStr};
+use std::{io::{Read, BufWriter}, path::Path, str::FromStr};
 
 use dioxus::prelude::*;
 use dioxus_desktop::Config;
 use dioxus_router::*;
-use opencv::prelude::*;
+use pyo3::Python;
+use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
 
 mod icons;
 use icons::{MoonIcon, SunIcon};
-
-mod constants;
-use constants::*;
 
 #[inline_props]
 pub fn ItemStickyMenu<'a>(cx: Scope, to: &'a str, children: Element<'a>) -> Element {
     cx.render(rsx! {
         Link {
-            class: "cursor-pointer hover:text-gray-700",
+            class: "cursor-pointer hover:text-gray-200",
             to: "{to}",
             children
         }
@@ -52,7 +51,7 @@ pub fn Sticky(cx: Scope) -> Element {
                     ItemStickyMenu { to: "/", "App" }
                     div {
                         "onclick": "{SCRIPT}",
-                        class: "cursor-pointer hover:text-gray-700",
+                        class: "cursor-pointer hover:text-gray-200",
                         div {
                             class: "hidden dark:block",
                             MoonIcon {}
@@ -89,7 +88,7 @@ pub fn Main<'a>(
     cx.render(rsx! {
         script { dangerous_inner_html: r#"document.body.classList.add("bg-neutral-100", "dark:bg-neutral-900");"# },
         div {
-            class:"bg-neutral-100 dark:bg-neutral-900 text-dark dark:text-white",
+            class:"bg-neutral-100 dark:bg-neutral-900 text-dark dark:text-white select-none",
             div {
                 Sticky {}
                 div { class:"h-screen mt-10 bg-neutral-100 dark:bg-neutral-900 text-dark dark:text-white",
@@ -130,6 +129,7 @@ fn main() {
     );
 }
 
+/* 
 fn read_image(path: &Path) -> Mat {
     let img = opencv::imgcodecs::imread(
         &path.as_os_str().to_str().unwrap(),
@@ -142,16 +142,33 @@ fn read_image(path: &Path) -> Mat {
 fn interpret_image(vec: &[u8]) -> Mat {
     let m = Mat::from_slice(vec).unwrap();
     m
-}
+} */
 
 // fn to_base64(mat: Mat) -> String {
 //     base64::encode(mat)
 // }
 
+/* 
 fn gray(img: Mat) -> Mat {
     let mut result: Mat = Mat::default();
     opencv::imgproc::cvt_color(&img, &mut result, opencv::imgproc::COLOR_BGR2GRAY, 0).unwrap();
     result
+}
+*/
+
+fn call_python() {
+    pyo3::prepare_freethreaded_python();
+    Python::with_gil(|py| {
+        let sys = py.import("sys")?;
+        let version: String = sys.getattr("version")?.extract()?;
+
+        let locals = [("os", py.import("os")?)].into_py_dict(py);
+        let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
+        let user: String = py.eval(code, None, Some(&locals))?.extract()?;
+
+        println!("Hello {}, I'm Python {}", user, version);
+        Ok::<(), anyhow::Error>(())
+    }).unwrap();
 }
 
 #[inline_props]
@@ -168,12 +185,14 @@ fn MainApp(cx: Scope) -> Element {
             div {
                 style: "text-align: center;",
                 h1 {
-                    class: "font-sans font-thin",
+                    class: "font-sans font-thin mb-5",
                     "Dioxus wooo"
                 }
                 div{
+                    class: "flex justify-center items-center",
                     input {
-                        class: "bg-neutral-100 dark:bg-neutral-900",
+                        class: "bg-neutral-100 dark:bg-titlebar text-dark dark:text-white rounded-md p-2 w-4/5",
+                        "type": "text",
                         value: "{spath}",
                         oninput: move |evt| {
                             let value = &evt.value.trim();
@@ -194,13 +213,20 @@ fn MainApp(cx: Scope) -> Element {
                         },
                     }
                     label {
+                        class: "bg-neutral-100 dark:bg-titlebar text-dark dark:text-white rounded-md p-2 ml-2",
                         r#for: "huey",
                         "Huey"
                     }
                 }
-                state_img.then(|| rsx! {
-                    img { src: "data:image/png;base64,{state}" }
-                })
+                div {
+                    class: "flex justify-center items-center",
+                    state_img.then(|| rsx! {
+                        img { 
+                            class: "w-5/6 mt-5",
+                            src: "data:image/png;base64,{state}" 
+                        }
+                    })
+                }
             }
         }
     })
@@ -216,6 +242,12 @@ fn Howto(cx: Scope) -> Element {
                 h1 {
                     class: "font-sans font-thin",
                     "Cómo funciona?"
+                }
+                button {
+                    onclick: |_| {
+                        call_python();
+                    },
+                    "sdzfsd"
                 }
             }
         }
