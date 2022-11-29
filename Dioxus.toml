@@ -5,7 +5,7 @@ out_dir = "dist"
 asset_dir = "public"
 
 [web.app]
-title = "dioxus"
+title = "Cars"
 
 [web.watcher]
 reload_html = true
