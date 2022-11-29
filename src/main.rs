@@ -4,7 +4,7 @@
 
 use std::{io::{Read, BufWriter}, path::Path, str::FromStr};
 
-use dioxus::prelude::*;
+use dioxus::{prelude::*, events::onchange};
 use dioxus_desktop::Config;
 use dioxus_router::*;
 use pyo3::Python;
@@ -102,6 +102,7 @@ pub fn Main<'a>(
 
 fn main() {
     console_error_panic_hook::set_once();
+    pyo3::prepare_freethreaded_python();
 
     log::info!("Launched app!");
 
@@ -129,46 +130,30 @@ fn main() {
     );
 }
 
-/* 
-fn read_image(path: &Path) -> Mat {
-    let img = opencv::imgcodecs::imread(
-        &path.as_os_str().to_str().unwrap(),
-        opencv::imgcodecs::IMREAD_COLOR,
-    )
-    .unwrap();
-    img
-}
+fn call_python(img: &str, save_in: &str) -> String {
+    let result = Python::with_gil(|py| {
+        let script = PyModule::from_code(py, r#"
+import cv2
 
-fn interpret_image(vec: &[u8]) -> Mat {
-    let m = Mat::from_slice(vec).unwrap();
-    m
-} */
+def transform_image(x, y):
+    imgp = x
+    imagen = cv2.imread(imgp)
+    imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+    imagen_eq = cv2.equalizeHist(imagen)
+    return (cv2.imwrite(rf'{y}/img.png', imagen_eq), rf'{y}/img.png')
+    "#, "script.py", "script")?;
 
-// fn to_base64(mat: Mat) -> String {
-//     base64::encode(mat)
-// }
+    let relu_result: (bool, String) = script.getattr("transform_image")?.call1((img,save_in))?.extract()?;
+    println!("Result: {:?}", relu_result);
+        
+    Ok::<(bool , String), anyhow::Error>(relu_result)
+    });
 
-/* 
-fn gray(img: Mat) -> Mat {
-    let mut result: Mat = Mat::default();
-    opencv::imgproc::cvt_color(&img, &mut result, opencv::imgproc::COLOR_BGR2GRAY, 0).unwrap();
-    result
-}
-*/
-
-fn call_python() {
-    pyo3::prepare_freethreaded_python();
-    Python::with_gil(|py| {
-        let sys = py.import("sys")?;
-        let version: String = sys.getattr("version")?.extract()?;
-
-        let locals = [("os", py.import("os")?)].into_py_dict(py);
-        let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
-        let user: String = py.eval(code, None, Some(&locals))?.extract()?;
-
-        println!("Hello {}, I'm Python {}", user, version);
-        Ok::<(), anyhow::Error>(())
-    }).unwrap();
+    if let Ok(result) = result {
+        result.1
+    } else {
+        String::from("Error")
+    }
 }
 
 #[inline_props]
@@ -177,55 +162,101 @@ fn MainApp(cx: Scope) -> Element {
     let spath: &UseState<String> = use_state(&cx, || {
         format!("{}", std::env::current_dir().unwrap().to_str().unwrap())
     });
+    let spath_valid: &UseState<String> = use_state(&cx, || "".to_owned());
     let state_img: &UseState<bool> = use_state(&cx, || false);
 
     cx.render(rsx! {
         Main {
             footer: false,
             div {
-                style: "text-align: center;",
+                class: "flex flex-col items-center justify-center",
                 h1 {
                     class: "font-sans font-thin mb-5",
                     "Dioxus wooo"
                 }
-                div{
-                    class: "flex justify-center items-center",
-                    input {
-                        class: "bg-neutral-100 dark:bg-titlebar text-dark dark:text-white rounded-md p-2 w-4/5",
-                        "type": "text",
-                        value: "{spath}",
-                        oninput: move |evt| {
-                            let value = &evt.value.trim();
-                            spath.set(evt.value.to_owned());
-                            let path =  std::path::PathBuf::from_str(value).unwrap();
-                            if path.exists() && !path.is_dir() {
-                                println!("Set state to {}",path.display());
-                                let mut file: std::fs::File = std::fs::OpenOptions::new()
-                                    .read(true).open(value).unwrap();
-                                let mut contents = vec![];
-                                file.read_to_end(&mut contents).unwrap();
-                                state.set(base64::encode(&contents));
-                                state_img.set(true);
-                            } else {
-                                state_img.set(false);
-                            }
-
-                        },
-                    }
-                    label {
-                        class: "bg-neutral-100 dark:bg-titlebar text-dark dark:text-white rounded-md p-2 ml-2",
-                        r#for: "huey",
-                        "Huey"
-                    }
-                }
                 div {
-                    class: "flex justify-center items-center",
-                    state_img.then(|| rsx! {
-                        img { 
-                            class: "w-5/6 mt-5",
-                            src: "data:image/png;base64,{state}" 
+                    class: "w-4/5",
+                    div{
+                        class: "flex items-center justify-center",
+                        input {
+                            class: "bg-neutral-200 dark:bg-titlebar text-dark dark:text-white rounded-md p-2 w-4/5",
+                            "type": "text",
+                            value: "{spath}",
+                            oninput: move |evt| {
+                                let value = &evt.value.trim();
+                                spath.set(evt.value.to_owned());
+                                let path =  std::path::PathBuf::from_str(value).unwrap();
+                                if path.exists() && !path.is_dir() {
+                                    spath_valid.set(path.to_str().unwrap().to_owned());
+                                }
+    
+                            },
                         }
-                    })
+                        button {
+                            class: "bg-neutral-200 dark:bg-titlebar text-dark dark:text-white rounded-md p-2 ml-2 w-1/5",
+                            "type": "button",
+                            onclick: |evt| {
+                                let path = rfd::FileDialog::new()
+                                .add_filter("image", &["png", "jpg", "jpeg"])
+                                .set_directory(directories::UserDirs::new().unwrap().home_dir().to_str().unwrap())
+                                .pick_file();
+    
+                                if let Some(path) = path {
+                                    spath.set(path.to_str().unwrap().to_owned());
+                                    spath_valid.set(path.to_str().unwrap().to_owned());
+                                }
+                            },
+                            "Browse"
+                        }
+                    }
+                    div {
+                        class: "flex justify-center items-center",
+                        button {
+                            class: "bg-neutral-200 dark:bg-titlebar text-dark dark:text-white rounded-md p-2 mt-2 w-full",
+                            onclick: |_| {
+                                let data_dir = directories::ProjectDirs::from("com", "up", "imp").unwrap();
+                                let data_dir = data_dir.data_dir();
+    
+                                if !data_dir.exists() {
+                                    std::fs::create_dir_all(data_dir).unwrap();
+                                }
+                               
+                                let path = std::path::PathBuf::from_str(spath_valid.get()).unwrap();
+                                if !path.exists() || path.is_dir() {
+                                    state_img.set(false);
+                                    return;
+                                }
+    
+                                let result = call_python(
+                                    &spath_valid.get(),
+                                    data_dir.to_str().unwrap()
+                                );
+                                
+                                if result != "Error" {
+                                    let path = std::path::PathBuf::from_str(&result).unwrap();
+                                    println!("Set state to {}",path.display());
+                                    let mut file: std::fs::File = std::fs::OpenOptions::new()
+                                        .read(true).open(path).unwrap();
+                                    let mut contents = vec![];
+                                    file.read_to_end(&mut contents).unwrap();
+                                    state.set(base64::encode(&contents));
+                                    state_img.set(true);
+                                } else {
+                                    state_img.set(false);
+                                }
+                            },
+                            "Do it!"
+                        }
+                    }
+                    div {
+                        class: "flex justify-center items-center",
+                        state_img.then(|| rsx! {
+                            img { 
+                                class: "mt-5 w-full",
+                                src: "data:image/png;base64,{state}" 
+                            }
+                        })
+                    }
                 }
             }
         }
@@ -242,12 +273,6 @@ fn Howto(cx: Scope) -> Element {
                 h1 {
                     class: "font-sans font-thin",
                     "Cómo funciona?"
-                }
-                button {
-                    onclick: |_| {
-                        call_python();
-                    },
-                    "sdzfsd"
                 }
             }
         }
