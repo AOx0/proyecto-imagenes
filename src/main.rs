@@ -72,10 +72,15 @@ pub fn Sticky(cx: Scope) -> Element {
 pub fn Footer(cx: Scope) -> Element {
     cx.render(rsx! {
         footer {
-            class:"h-10 bg-titlebar",
+            class:"h-10 bg-titlebar bg-titlebar p-2 backdrop-filter backdrop-blur-xl",
             div {
-                class: "bg-titlebar",
-                h1 { class:"text-white text-2xl text-center p-5", "Footer" }
+                class: "flex items-center justify-center text-sm space-x-10 ",
+                div {
+                    p {
+                        class: "text-white font-sans font-thin",
+                        "Osornio & Toledo @ Universidad Panamericana"
+                    }
+                }
             }
         }
     })
@@ -157,7 +162,7 @@ def transform_image(x, y):
 fn diff_n_conn(img1: &str, img2: &str, ext: &str, save_in: &str) -> Result<(i32, String)> {
     let result = Python::with_gil(|py| {
         let script = PyModule::from_code(py, 
-            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/diffcon.py")),  
+            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/python/diffcon.py")),  
             "diffcon.py", 
             "diffcon"
         )?;
@@ -169,7 +174,51 @@ fn diff_n_conn(img1: &str, img2: &str, ext: &str, save_in: &str) -> Result<(i32,
     });
 
     if let Ok(result) = result {
-        Ok(result)
+        if result.1 == "ERROR" {
+            Err(anyhow::anyhow!("There was a problem while saving the image"))
+        } else {
+            Ok(result)
+        }
+    } else {
+        Err(result.unwrap_err())
+    }
+}
+
+fn haar_cascade(img: &str, ext: &str, save_in: &str) -> Result<(i32, String)> {
+    let result = Python::with_gil(|py| {
+        let script = PyModule::from_code(py, 
+            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/python/haar.py")),  
+            "haar.py", 
+            "haar"
+        )?;
+
+        let data_dir = directories::ProjectDirs::from("com", "up", "imp").unwrap();
+        let data_dir = data_dir.data_dir();
+
+        if !data_dir.exists() {
+            std::fs::create_dir_all(data_dir).unwrap();
+        }
+        let xml = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/python/cars.xml"));
+
+        if !data_dir.join("cars.xml").exists() {
+            std::fs::write(data_dir.join("cars.xml"), xml)?;
+        }
+
+        let xml_path = data_dir.join("cars.xml");
+        let xml_path = xml_path.to_str().unwrap();
+
+        let relu_result: (i32, String) = script.getattr("haar_cascade")?.call1((img, ext, save_in, xml_path))?.extract()?;
+        println!("Result: {:?}", relu_result);
+            
+        Ok::<(i32 , String), anyhow::Error>(relu_result)
+    });
+
+    if let Ok(result) = result {
+        if result.1 == "ERROR" {
+            Err(anyhow::anyhow!("There was a problem while saving the image"))
+        } else {
+            Ok(result)
+        }
     } else {
         Err(result.unwrap_err())
     }
@@ -334,7 +383,7 @@ fn DiffMethod(cx: Scope) -> Element {
                                     "There are {cars_in_image} cars in the image!"
                                 }
                                 img { 
-                                    class: "mt-2 w-1/2",
+                                    class: "mt-2 w-2/3",
                                     src: "data:image/png;base64,{base64_image}" 
                                 }
                             })
@@ -354,6 +403,8 @@ fn HaarMethod(cx: Scope) -> Element {
     });
     let spath_valid: &UseState<String> = use_state(&cx, || "".to_owned());
     let state_img: &UseState<bool> = use_state(&cx, || false);
+
+    let cars_in_image: &UseState<i32> = use_state(&cx, || 0);
 
     cx.render(rsx! {
         Main {
@@ -424,35 +475,45 @@ fn HaarMethod(cx: Scope) -> Element {
                                 println!("Copying file to {:?} from {:?}", new_path, spath_valid.get());
                                 std::fs::copy(spath_valid.get(), new_path.to_str().unwrap()).unwrap();
     
-                                let result = call_python(
+                                let result = haar_cascade(
                                     new_path.to_str().unwrap(),
-                                    data_dir.to_str().unwrap()
+                                    img_extension,
+                                    data_dir.to_str().unwrap(),
                                 );
                                 
-                                if result != "Error" {
-                                    let path = std::path::PathBuf::from_str(&result).unwrap();
+                                if let Ok(result) = result {
+                                    let path = std::path::PathBuf::from_str(&result.1).unwrap();
                                     println!("Set state to {}",path.display());
                                     let mut file: std::fs::File = std::fs::OpenOptions::new()
                                         .read(true).open(path).unwrap();
                                     let mut contents = vec![];
                                     file.read_to_end(&mut contents).unwrap();
                                     state.set(base64::encode(&contents));
+                                    cars_in_image.set(result.0);
                                     state_img.set(true);
                                 } else {
                                     state_img.set(false);
+                                    println!("Error: {:?}", result.unwrap_err());
                                 }
                             },
                             "Do it!"
                         }
                     }
                     div {
-                        class: "flex justify-center items-center",
-                        state_img.then(|| rsx! {
-                            img { 
-                                class: "mt-5 w-full",
-                                src: "data:image/png;base64,{state}" 
-                            }
-                        })
+                        class: "flex justify-center items-center mt-5",
+                        div {
+                            class: "flex flex-col items-center",
+                            state_img.then(|| rsx! {
+                                p {
+                                    class: "text-center",
+                                    "There are {cars_in_image} cars in the image!"
+                                }
+                                img { 
+                                    class: "mt-2 w-2/3",
+                                    src: "data:image/png;base64,{state}" 
+                                }
+                            })
+                        }
                     }
                 }
             }
@@ -468,8 +529,8 @@ fn Howto(cx: Scope) -> Element {
             div {
                 style: "text-align: center;",
                 h1 {
-                    class: "font-sans font-thin",
-                    "Cómo funciona?"
+                    class: "font-sans font-thin mb-5 text-xl",
+                    "¿Cómo Funciona?"
                 }
             }
         }
@@ -482,10 +543,22 @@ fn Credit(cx: Scope) -> Element {
         Main {
             footer: true,
             div {
-                style: "text-align: center;",
+                class: "flex flex-col items-center justify-center",
                 h1 {
-                    class: "font-sans font-thin",
+                    class: "font-sans font-thin mb-5 text-xl",
                     "Créditos"
+                }
+                div {
+                    class: "w-4/5",
+                    img {
+                        src: "https://avatars.githubusercontent.com/u/50227494?v=4",
+                        class: "rounded-full w-32 shadow-lg",
+                        alt: "Avatar",
+                    }
+                    p {
+                        class: "text-center",
+                        "Creado por @up"
+                    }
                 }
             }
         }

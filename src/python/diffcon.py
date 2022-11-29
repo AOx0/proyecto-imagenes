@@ -42,6 +42,7 @@ def calculare_diff(img1: str, img2: str, ext: str, out_dir: str):
         cv.rectangle(img1, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
     path = rf"{out_dir}/img.{ext}"
-    cv.imwrite(path, img1)
-
-    return (num_labels - 1, f"{path}")
+    if cv.imwrite(path, img1):
+        return (num_labels - 1, rf"{path}")
+    else:
+        return (num_labels - 1, "ERROR")
