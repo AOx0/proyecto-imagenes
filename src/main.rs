@@ -101,12 +101,8 @@ pub fn Main<'a>(
 }
 
 fn main() {
-    console_error_panic_hook::set_once();
     pyo3::prepare_freethreaded_python();
 
-    log::info!("Launched app!");
-
-    //dioxus_web::launch(app);
     dioxus_desktop::launch_cfg(
         app,
         Config::new().with_custom_head(format!(
@@ -195,7 +191,7 @@ fn MainApp(cx: Scope) -> Element {
                         button {
                             class: "bg-neutral-200 dark:bg-titlebar text-dark dark:text-white rounded-md p-2 ml-2 w-1/5",
                             "type": "button",
-                            onclick: |evt| {
+                            onclick: |_| {
                                 let path = rfd::FileDialog::new()
                                 .add_filter("image", &["png", "jpg", "jpeg"])
                                 .set_directory(directories::UserDirs::new().unwrap().home_dir().to_str().unwrap())
