@@ -1,4 +1,4 @@
-set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+set shell := ["powershell.exe","-c"]
 
 run:
     tailwindcss -c tailwind.config.js -o public/assets/tailwind.css

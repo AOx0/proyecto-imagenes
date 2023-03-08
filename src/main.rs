@@ -47,8 +47,6 @@ pub fn Sticky(cx: Scope) -> Element {
                 class: "glass bg-titlebar p-2 backdrop-filter backdrop-blur-xl",
                 div {
                     class:"flex items-center justify-center text-sm space-x-10 text-white",
-                    ItemStickyMenu { to: "/credit", "Créditos" }
-                    ItemStickyMenu { to: "/howto", "¿Cómo funciona?" }
                     ItemStickyMenu { to: "/haar", "Haar Cascade" }
                     ItemStickyMenu { to: "/", "Diff & Connect" }
                     div {
@@ -133,31 +131,6 @@ fn main() {
     );
 }
 
-fn call_python(img: &str, save_in: &str) -> String {
-    let result = Python::with_gil(|py| {
-        let script = PyModule::from_code(py, r#"
-import cv2
-
-def transform_image(x, y):
-    imgp = x
-    imagen = cv2.imread(imgp)
-    imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
-    imagen_eq = cv2.equalizeHist(imagen)
-    return (cv2.imwrite(rf'{y}/img.png', imagen_eq), rf'{y}/img.png')
-    "#, "script.py", "script")?;
-
-    let relu_result: (bool, String) = script.getattr("transform_image")?.call1((img,save_in))?.extract()?;
-    println!("Result: {:?}", relu_result);
-        
-    Ok::<(bool , String), anyhow::Error>(relu_result)
-    });
-
-    if let Ok(result) = result {
-        result.1
-    } else {
-        String::from("Error")
-    }
-}
 
 fn diff_n_conn(img1: &str, img2: &str, ext: &str, save_in: &str) -> Result<(i32, String)> {
     let result = Python::with_gil(|py| {
@@ -521,57 +494,11 @@ fn HaarMethod(cx: Scope) -> Element {
     })
 }
 
-#[inline_props]
-fn Howto(cx: Scope) -> Element {
-    cx.render(rsx! {
-        Main {
-            footer: true,
-            div {
-                style: "text-align: center;",
-                h1 {
-                    class: "font-sans font-thin mb-5 text-xl",
-                    "¿Cómo Funciona?"
-                }
-            }
-        }
-    })
-}
-
-#[inline_props]
-fn Credit(cx: Scope) -> Element {
-    cx.render(rsx! {
-        Main {
-            footer: true,
-            div {
-                class: "flex flex-col items-center justify-center",
-                h1 {
-                    class: "font-sans font-thin mb-5 text-xl",
-                    "Créditos"
-                }
-                div {
-                    class: "w-4/5",
-                    img {
-                        src: "https://avatars.githubusercontent.com/u/50227494?v=4",
-                        class: "rounded-full w-32 shadow-lg",
-                        alt: "Avatar",
-                    }
-                    p {
-                        class: "text-center",
-                        "Creado por @up"
-                    }
-                }
-            }
-        }
-    })
-}
-
 fn app(cx: Scope) -> Element {
     cx.render(rsx!(
         Router {
             Route { to: "/", DiffMethod {} }
             Route { to: "/haar", HaarMethod {} }
-            Route { to: "/howto", Howto {} }
-            Route { to: "/credit", Credit {} }
         }
     ))
 }
